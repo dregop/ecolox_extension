@@ -20,13 +20,20 @@ const carbonIntensityFactorIngCO2PerKWh = {
 let statsInterval;
 let pieChart;
 
-parseStats = () => {
-  const stats = localStorage.getItem('stats');
-  return null === stats ? {} : JSON.parse(stats);
+const LS = {
+  getAllItems: () => chrome.storage.local.get(),
+  getItem: async key => (await chrome.storage.local.get(key))[key],
+  setItem: (key, val) => chrome.storage.local.set({[key]: val}),
+  removeItem: keys => chrome.storage.local.remove(keys),
+};
+
+parseStats = async () => {
+  const stats =  await LS.getItem('stats');
+  return undefined === stats ? {} : JSON.parse(await stats);
 }
 
-getStats = () => {
-  const stats = parseStats();
+getStats = async () => {
+  const stats = await parseStats();
   let total = 0;
   const sortedStats = [];
 
@@ -64,9 +71,8 @@ getStats = () => {
 
 toMegaByte = (value) => (Math.round(value/1024/1024));
 
-showStats = () => {
-  const stats = getStats();
-
+showStats = async () => {
+  const stats = await getStats();
   if (stats.total === 0) {
     return;
   }
@@ -93,8 +99,8 @@ showStats = () => {
     statsListItemsElement.appendChild(li);
   }
 
-  let duration = localStorage.getItem('duration');
-  duration = null === duration ? 0 : duration;
+  let duration = await LS.getItem('duration');
+  duration = undefined === duration ? 0 : duration;
 
   const kWhDataCenterTotal = stats.total * kWhPerByteDataCenter;
   const GESDataCenterTotal = kWhDataCenterTotal * defaultCarbonIntensityFactorIngCO2PerKWh;
@@ -110,6 +116,22 @@ showStats = () => {
 
   const kmByCar = Math.round(1000 * gCO2Total / GESgCO2ForOneKmByCar) / 1000;
   const chargedSmartphones = Math.round(gCO2Total / GESgCO2ForOneChargedSmartphone);
+
+
+  /*
+  chrome.tabs.onUpdated.addListener( function (tabId, changeInfo, tab) {
+    console.log(tabId);
+      chrome.tabs.sendMessage(tabId, {c02: gCO2Total}, function(response) {});
+  });
+  */
+  
+  /*
+  chrome.tabs.query({url: 'http://localhost:4200/*'}, function(tabs) {
+    console.log(tabs);
+    chrome.tabs.sendMessage(tabs[0].id, {c02: gCO2Total}, function(response) {});
+    
+  });
+  */
 
   if (!pieChart) {
     pieChart = new Chartist.Pie('.ct-chart', {labels, series}, {
@@ -138,69 +160,69 @@ showStats = () => {
   equivalenceTitle.appendChild(document.createTextNode(chrome.i18n.getMessage('equivalenceTitle', [duration.toString(), megaByteTotal, kWhTotal.toString(), gCO2Total.toString()])));
 }
 
-start = () => {
+start = async () => {
   chrome.runtime.sendMessage({ action: 'start' });
 
   hide(startButton);
   show(stopButton);
   show(analysisInProgressMessage);
-  localStorage.setItem('analysisStarted', '1');
+  LS.setItem('analysisStarted', '1');
 }
 
-stop = () => {
+stop = async () => {
   chrome.runtime.sendMessage({ action: 'stop' });
 
   hide(stopButton);
   show(startButton);
   hide(analysisInProgressMessage);
   clearInterval(statsInterval);
-  localStorage.removeItem('analysisStarted');
+  LS.removeItem('analysisStarted');
 }
 
-reset = () => {
+reset = async () => {
   if (!confirm(translate('resetConfirmation'))) {
     return;
   }
 
-  localStorage.removeItem('stats');
-  localStorage.removeItem('duration');
+  LS.removeItem('stats');
+  LS.removeItem('duration');
   hide(statsElement);
-  showStats();
+  await showStats();
   hide(resetButton);
 }
 
-init = () => {
-  const selectedRegion = localStorage.getItem('selectedRegion');
+init = async () => {
+  const selectedRegion = await LS.getItem('selectedRegion');
 
-  if (null !== selectedRegion) {
+  if (undefined !== selectedRegion) {
     userLocation = selectedRegion;
     selectRegion.value = selectedRegion;
   }
 
-  if (null === localStorage.getItem('stats')) {
+  if (undefined === await LS.getItem('stats')) {
     hide(resetButton);
   } else {
     show(resetButton);
   }
 
-  showStats();
+  await showStats();
 
-  if (null === localStorage.getItem('analysisStarted')) {
+  if (undefined === await LS.getItem('analysisStarted')) {
     return;
   }
 
   start();
-  statsInterval = setInterval(showStats, 2000);
+  statsInterval = setInterval(await showStats, 2000);
 }
 
-selectRegionHandler = (event) => {
+selectRegionHandler = async (event) => {
   const selectedRegion = event.target.value;
 
   if ('' === selectedRegion) {
     return;
   }
 
-  localStorage.setItem('selectedRegion', selectedRegion);
+  LS.setItem('selectedRegion', selectedRegion);
   userLocation = selectedRegion;
   showStats();
 }

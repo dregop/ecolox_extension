@@ -1,8 +1,8 @@
 {
-  "manifest_version": 2,
-  "name": "Carbonalyser",
-  "description": "Analyse Internet usage carbon footprint",
-  "author": "TheShiftProject",
+  "manifest_version": 3,
+  "name": "Ecolox",
+  "description": "Prout",
+  "author": "Dregop",
   "version": "1.2.0",
   "icons": {
     "48": "icons/icon-on-48.png"
@@ -10,14 +10,21 @@
   "permissions": [
     "storage",
     "webRequest",
+    "tabs"
+  ],
+  "host_permissions": [
     "<all_urls>"
   ],
   "background": {
-    "scripts": [
-      "script.js"
-    ]
+    "service_worker": "script.js"
   },
-  "browser_action": {
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:4200/*"],
+      "js": ["content-script.js"]
+    }
+  ],
+  "action": {
     "browser_style": true,
     "default_popup": "popup/popup.html",
     "default_icon": {

@@ -1,5 +1,5 @@
 {
-  "name": "carbonalyzer",
+  "name": "ecolox",
   "version": "1.2.0",
   "description": "Analyse Internet usage carbon footprint",
   "main": "script.js",
@@ -18,7 +18,7 @@
     "test": "mocha test/test-script.js",
     "coverage": "nyc mocha"
   },
-  "author": "TheShiftProject",
+  "author": "Dregop",
   "license": "MIT",
   "dependencies": {}
 }

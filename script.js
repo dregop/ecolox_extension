@@ -9,14 +9,24 @@ extractHostname = (url) => {
   return hostname;
 };
 
-setByteLengthPerOrigin = (origin, byteLength) => {
-  const stats = localStorage.getItem('stats');
-  const statsJson = null === stats ? {} : JSON.parse(stats);
-
+setByteLengthPerOrigin = async (origin, byteLength) => {
+  const LS = {
+    getAllItems: () => chrome.storage.local.get(),
+    getItem: async key => (await chrome.storage.local.get(key))[key],
+    setItem: (key, val) => chrome.storage.local.set({[key]: val}),
+    removeItems: keys => chrome.storage.local.remove(keys),
+  };
+  const stats = await LS.getItem('stats');
+  const statsJson = undefined === stats ? {} : JSON.parse(stats);
+  
   let bytePerOrigin = undefined === statsJson[origin] ? 0 : parseInt(statsJson[origin]);
   statsJson[origin] = bytePerOrigin + byteLength;
-
-  localStorage.setItem('stats', JSON.stringify(statsJson));
+  chrome.storage.local.set({['stats']: JSON.stringify(statsJson)});
+  /*
+  chrome.tabs.query({active: true}, async function(tabs) {
+    chrome.tabs.sendMessage(tabs[0].id, {co2: statsJson, duration: await LS.getItem('duration')}, function(response) {});
+  });
+  */
 };
 
 isChrome = () => {
@@ -52,35 +62,34 @@ headersReceivedListener = (requestDetails) => {
 };
 
 setBrowserIcon = (type) => {
-  chrome.browserAction.setIcon({path: `icons/icon-${type}-48.png`});
+  chrome.action.setIcon({path: `icons/icon-${type}-48.png`});
 };
 
-addOneMinute = () => {
-  let duration = localStorage.getItem('duration');
-  duration = null === duration ? 1 : 1 * duration + 1;
-  localStorage.setItem('duration', duration);
+addOneMinute = async () => {
+  const LS = {
+    getAllItems: () => chrome.storage.local.get(),
+    getItem: async key => (await chrome.storage.local.get(key))[key],
+    setItem: (key, val) => chrome.storage.local.set({[key]: val}),
+    removeItems: keys => chrome.storage.local.remove(keys),
+  };
+  
+  let duration = await LS.getItem('duration');
+  duration = undefined === duration ? 1 : 1 * duration + 1; //LOL?
+  LS.setItem('duration', duration);
 };
 
 let addOneMinuteInterval;
 
 handleMessage = (request) => {
-  if ('start' === request.action) {
-    setBrowserIcon('on');
+  const LS = {
+    getAllItems: () => chrome.storage.local.get(),
+    getItem: async key => (await chrome.storage.local.get(key))[key],
+    setItem: (key, val) => chrome.storage.local.set({[key]: val}),
+    removeItems: keys => chrome.storage.local.remove(keys),
+  };
 
-    chrome.webRequest.onHeadersReceived.addListener(
-      headersReceivedListener,
-      {urls: ['<all_urls>']},
-      ['responseHeaders']
-    );
-
-    if (!addOneMinuteInterval) {
-      addOneMinuteInterval = setInterval(addOneMinute, 60000);
-    }
-
-    return;
-  }
-
-  if ('stop' === request.action) {
+  if ('stop' === request.action) { // only stop when browser is openned. If restarted, the extension starts again
+    LS.setItem('stop', true);
     setBrowserIcon('off');
     chrome.webRequest.onHeadersReceived.removeListener(headersReceivedListener);
 
@@ -92,3 +101,15 @@ handleMessage = (request) => {
 };
 
 chrome.runtime.onMessage.addListener(handleMessage);
+
+
+setBrowserIcon('on');
+chrome.webRequest.onHeadersReceived.addListener(
+  headersReceivedListener,
+  {urls: ['<all_urls>']},
+  ['responseHeaders']
+);
+
+if (!addOneMinuteInterval) {
+  addOneMinuteInterval = setInterval(addOneMinute, 60000);
+}
